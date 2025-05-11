@@ -3,6 +3,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy import stats as st
+import math as mth
+from statsmodels.stats.proportion import proportions_ztest
+from scipy.stats import mannwhitneyu
+
 
 # Cargar los datasets
 
@@ -29,8 +34,14 @@ df_visits['date'] = pd.to_datetime(df_visits['date'], format='%Y-%m-%d') # trans
 
 
 # Confirmar que no haya errores en los datos
-# Del df orders agrupar por date mostrando la cantidad de pedidos por dia por grupo
-df_orders_group = df_orders.groupby(['date', 'group']).agg({'visitorId': 'count'}).reset_index()
+# Clonar el dataframe df_orders en un nuevo dataframe df_orders_clean
+df_orders_copy = df_orders.copy() # clonar el dataframe df_orders en un nuevo dataframe df_orders_clean
+visitors_A = set(df_orders[df_orders['group'] == 'A']['visitorId']) # obtener los visitantes del grupo A
+visitors_B = set(df_orders[df_orders['group'] == 'B']['visitorId']) # obtener los visitantes del grupo B
+# Verificar que no haya visitantes en ambos grupos 
+intersecting_visitors = visitors_A & visitors_B # obtener los visitantes que estan en ambos grupos
+# Eliminar los visitantes que estan en ambos grupos
+df_orders = df_orders[~df_orders['visitorId'].isin(intersecting_visitors)] # eliminar los visitantes que estan en ambos grupos
 
 
 
@@ -219,3 +230,129 @@ print('El percentil 95 es:', percentil_95) # imprimir el percentil 95
 # Calcular el percentil 99
 percentil_99 = np.percentile(df_orders_price['revenue'], 99) # calcular el percentil 99
 print('El percentil 99 es:', percentil_99) # imprimir el percentil 99
+
+
+
+
+
+# Encuentra la significancia estadística de la diferencia en la conversión entre los grupos utilizando los datos filtrados. Haz conclusiones y conjeturas.
+
+alpha = 0.05 # nivel de significancia
+
+# Separar los grupos
+df_orders_A = df_orders[df_orders['group'] == 'A'] # separar el grupo A
+# Usuarios unicos del grupo A
+users_unique_A = df_orders_A['visitorId'].nunique() # contar el total de visitante unicos del grupo A
+# Total de usuarios del grupo A
+total_users_A = df_orders_A['visitorId'].count() # contar el total de usuarios del grupo A
+
+df_orders_B = df_orders[df_orders['group'] == 'B'] # separar el grupo B
+# Usuarios unicos del grupo B
+users_unique_B = df_orders_B['visitorId'].nunique() # contar el total de visitante unicos del grupo B  
+# Total de usuarios del grupo B
+total_users_B = df_orders_B['visitorId'].count() # contar el total de usuarios del grupo B
+
+# porporcion de exito del grupo A
+conversion_A = users_unique_A / total_users_A # calcular la proporcion de exito del grupo A
+# porporcion de exito del grupo B
+conversion_B = users_unique_B / total_users_B # calcular la proporcion de exito del grupo B
+
+# prueba de hipotesis 
+count = [users_unique_A, users_unique_B] # contar el total de pedidos del grupo A y B
+nobs = [total_users_A, total_users_B] # contar el total de usuarios del grupo A y B
+
+# Realizar la prueba de hipotesis
+z_stat, p_value = proportions_ztest(count, nobs) # realizar la prueba de hipotesis
+# Imprimir los resultados
+print('Z-statistic:', z_stat) # imprimir el valor z
+print('P-value:', p_value) # imprimir el valor p
+
+# Comparar el valor p con el nivel de significancia
+if p_value < alpha: # si el valor p es menor que el nivel de significancia
+    print('Rechazamos la hipotesis nula; Sí hay diferencia estadisticamente significativa') # rechazar la hipotesis nula
+else: # si el valor p es mayor que el nivel de significancia
+    print('No rechazamos la hipotesis nula; No hay diferencia estadisticamente significativa')
+    
+
+
+
+# diferencia estadísticamente significativa en el tamaño promedio de pedido
+
+# Separar pedidos por grupo
+group_A = df_orders[df_orders['group'] == 'A']['revenue'] # separar el grupo A
+group_B = df_orders[df_orders['group'] == 'B']['revenue'] # separar el grupo B
+
+from scipy.stats import mannwhitneyu
+
+stat, pval = mannwhitneyu(group_A, group_B, alternative='two-sided')
+
+print(f'Estadístico U: {stat:.2f}')
+print(f'Valor p: {pval:.4f}')
+
+# Comparar el valor p con el nivel de significancia
+if pval < alpha: # si el valor p es menor que el nivel de significancia
+    print('Rechazamos la hipotesis nula; Sí hay diferencia estadisticamente significativa') # rechazar la hipotesis nula
+else: # si el valor p es mayor que el nivel de significancia    
+    print('No rechazamos la hipotesis nula; No hay diferencia estadisticamente significativa')
+    
+    
+    
+    
+
+# Datos crudos
+
+# Separar los grupos
+df_orders_A = df_orders_copy[df_orders_copy['group'] == 'A'] # separar el grupo A
+# Usuarios unicos del grupo A
+users_unique_A = df_orders_A['visitorId'].nunique() # contar el total de visitante unicos del grupo A
+# Total de usuarios del grupo A
+total_users_A = df_orders_A['visitorId'].count() # contar el total de usuarios del grupo A
+
+df_orders_B = df_orders_copy[df_orders_copy['group'] == 'B'] # separar el grupo B
+# Usuarios unicos del grupo B
+users_unique_B = df_orders_B['visitorId'].nunique() # contar el total de visitante unicos del grupo B  
+# Total de usuarios del grupo B
+total_users_B = df_orders_B['visitorId'].count() # contar el total de usuarios del grupo B
+
+# porporcion de exito del grupo A
+conversion_A = users_unique_A / total_users_A # calcular la proporcion de exito del grupo A
+# porporcion de exito del grupo B
+conversion_B = users_unique_B / total_users_B # calcular la proporcion de exito del grupo B
+
+# prueba de hipotesis 
+count = [users_unique_A, users_unique_B] # contar el total de pedidos del grupo A y B
+nobs = [total_users_A, total_users_B] # contar el total de usuarios del grupo A y B
+
+# Realizar la prueba de hipotesis
+z_stat, p_value = proportions_ztest(count, nobs) # realizar la prueba de hipotesis
+# Imprimir los resultados
+print('Z-statistic:', z_stat) # imprimir el valor z
+print('P-value:', p_value) # imprimir el valor p
+
+# Comparar el valor p con el nivel de significancia
+if p_value < alpha: # si el valor p es menor que el nivel de significancia
+    print('Rechazamos la hipotesis nula; Sí hay diferencia estadisticamente significativa') # rechazar la hipotesis nula
+else: # si el valor p es mayor que el nivel de significancia
+    print('No rechazamos la hipotesis nula; No hay diferencia estadisticamente significativa')
+    
+
+
+
+# diferencia estadísticamente significativa en el tamaño promedio de pedido
+
+# Separar pedidos por grupo
+group_A = df_orders_copy[df_orders_copy['group'] == 'A']['revenue'] # separar el grupo A
+group_B = df_orders_copy[df_orders_copy['group'] == 'B']['revenue'] # separar el grupo B
+
+from scipy.stats import mannwhitneyu
+
+stat, pval = mannwhitneyu(group_A, group_B, alternative='two-sided')
+
+print(f'Estadístico U: {stat:.2f}')
+print(f'Valor p: {pval:.4f}')
+
+# Comparar el valor p con el nivel de significancia
+if pval < alpha: # si el valor p es menor que el nivel de significancia
+    print('Rechazamos la hipotesis nula; Sí hay diferencia estadisticamente significativa') # rechazar la hipotesis nula
+else: # si el valor p es mayor que el nivel de significancia    
+    print('No rechazamos la hipotesis nula; No hay diferencia estadisticamente significativa')
